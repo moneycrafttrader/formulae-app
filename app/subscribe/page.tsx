@@ -30,8 +30,8 @@ export default function SubscribePage() {
     {
       id: "1m",
       title: "1 Month Access",
-      priceLabel: "₹2,999",
-      amount: 2999,
+      priceLabel: "₹1",
+      amount: 1,
       description: "Perfect to try out the Magic Formula for a short duration.",
       badges: [],
     },
