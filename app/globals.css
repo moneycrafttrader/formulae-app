@@ -1,27 +1,78 @@
+/* Tailwind Core */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Theme Colors - Dark Theme matching Magic Formulae */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0a0a0a; /* Dark black */
+  --foreground: #ffffff; /* White */
+  --primary: #00ff88; /* Bright green */
+  --primary-hover: #00cc6f; /* Darker green on hover */
+  --success: #00ff88; /* Bright green */
+  --border: #333333; /* Dark gray borders */
+  --card-bg: #1a1a1a; /* Dark gray for cards */
+  --yellow-accent: #ffd700; /* Yellow for ratings/special elements */
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* Custom Utilities */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+  
+  /* Magic Formulae gradient backgrounds */
+  .gradient-primary {
+    background: linear-gradient(135deg, #00ff88 0%, #00cc6f 100%);
+  }
+  
+  .gradient-purple-pink {
+    background: linear-gradient(135deg, #9333ea 0%, #ec4899 100%);
+  }
+  
+  .gradient-green-border {
+    border-image: linear-gradient(135deg, #00ff88, #00cc6f) 1;
+  }
+  
+  /* Subtle grid pattern for background */
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00ff88;
 }
