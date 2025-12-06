@@ -138,33 +138,41 @@ export default function DashboardPage() {
           size="md"
         />
 
-        {/* Subscription Card */}
-        <Card variant="light" className="mb-6">
-        {isSubscribed ? (
-          <>
-            <h2 className="text-xl font-semibold text-white">
-              ⭐ Active Subscription
-            </h2>
-            <p className="text-gray-300 mt-2">
-              You have full access to all formulae until{" "}
-              <span className="font-bold text-[#00ff88]">
-                {subscriptionEndDate}
-              </span>
-              .
-            </p>
-          </>
-        ) : (
-          <>
-            <h2 className="text-xl font-semibold text-white">🆓 Free Trial</h2>
-            <p className="text-gray-300 mt-2">
-              Upgrade to unlock unlimited formula calculations and premium
-              features.
-            </p>
-            <Button variant="primary" href="/subscribe" className="mt-4">
-              Upgrade Subscription →
-            </Button>
-          </>
-        )}
+      {/* Subscription Card */}
+      <Card variant="light" className="mb-6">
+        <div className="space-y-4">
+          {isSubscribed ? (
+            <>
+              <div>
+                <h2 className="text-xl font-semibold text-white">
+                  ⭐ Active Subscription
+                </h2>
+                <p className="text-gray-300 mt-2">
+                  You have full access to all formulae until{" "}
+                  <span className="font-bold text-[#00ff88]">
+                    {subscriptionEndDate}
+                  </span>
+                  .
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-xl font-semibold text-white">🆓 Free Trial</h2>
+                <p className="text-gray-300 mt-2">
+                  Upgrade to unlock unlimited formula calculations and premium
+                  features.
+                </p>
+              </div>
+              <div>
+                <Button variant="primary" href="/subscribe" className="mt-4">
+                  Upgrade Subscription →
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </Card>
 
       {/* Quick Navigation Buttons */}
