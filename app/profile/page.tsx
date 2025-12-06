@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import PageContainer from "@/app/components/PageContainer";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
@@ -53,9 +54,15 @@ export default function ProfilePage() {
 
         {/* Profile Picture */}
         <div className="flex flex-col items-center">
-          <div className="w-32 h-32 rounded-full bg-gray-700 overflow-hidden mb-3">
+          <div className="w-32 h-32 rounded-full bg-gray-700 overflow-hidden mb-3 relative">
             {profilePic ? (
-              <img src={profilePic} alt="Profile" className="w-full h-full object-cover" />
+              <Image 
+                src={profilePic} 
+                alt="Profile" 
+                fill
+                className="object-cover"
+                unoptimized
+              />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-gray-400">
                 No Photo

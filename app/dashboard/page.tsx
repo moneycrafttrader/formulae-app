@@ -56,7 +56,7 @@ export default function DashboardPage() {
               </span>{" "}
               / 3
             </p>
-            <Button variant="primary" as="a" href="/subscribe" className="mt-4">
+            <Button variant="primary" href="/subscribe" className="mt-4">
               Upgrade Subscription →
             </Button>
           </>
@@ -68,7 +68,6 @@ export default function DashboardPage() {
         {/* Calculator */}
         <Button
           variant="primary"
-          as="a"
           href="/calculator"
           fullWidth
           className="p-5 text-center"
@@ -79,7 +78,6 @@ export default function DashboardPage() {
         {/* Profile */}
         <Button
           variant="secondary"
-          as="a"
           href="/profile"
           fullWidth
           className="p-5 text-center"
@@ -90,7 +88,6 @@ export default function DashboardPage() {
         {/* Subscription */}
         <Button
           variant="purple"
-          as="a"
           href="/subscription"
           fullWidth
           className="p-5 text-center"
@@ -101,7 +98,6 @@ export default function DashboardPage() {
         {/* Logout */}
         <Button
           variant="danger"
-          as="a"
           href="/logout"
           fullWidth
           className="p-5 text-center"

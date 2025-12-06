@@ -136,7 +136,7 @@ The application uses a component-based architecture with shared reusable compone
 
 - **PageContainer**: Consistent page layout wrapper with dark background, optional max-width, and centering
 - **Card**: Reusable card component with variants, interactive hover option, and consistent padding
-- **Button**: Styled button component with multiple variants (primary green, secondary, outline, etc.) and link support
+- **Button**: Styled button component with multiple variants (primary, secondary, outline, ghost, warning, purple, danger, success), link support via href prop, and optional fullWidth prop for full-width buttons
 - **Input**: Labeled input with helper text, optional badge, disabled/error styling, and full-width defaults
 - **SectionTitle**: Standardized section headers with optional eyebrow, description, alignment, and sizing
 - **FormulaTabs**: Tab switcher component for selecting between Classic and Camarilla formula calculation methods

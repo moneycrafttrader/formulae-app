@@ -51,7 +51,6 @@ export default function Navigation() {
           <div className="flex items-center space-x-4">
             <Button
               variant="primary"
-              as="a"
               href="/signup"
               className="hidden sm:inline-flex items-center gap-1"
             >

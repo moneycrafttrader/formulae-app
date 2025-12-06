@@ -5,7 +5,7 @@ import Link from "next/link";
 
 type ButtonProps = {
   children: React.ReactNode;
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "warning" | "purple" | "danger" | "success";
   href?: string;
   className?: string;
   onClick?: () => void;
@@ -32,6 +32,10 @@ export default function Button({
     secondary: "bg-gray-700 text-white hover:bg-gray-600",
     outline: "border border-gray-500 text-white hover:bg-gray-800",
     ghost: "text-gray-300 hover:text-white",
+    warning: "bg-yellow-500 text-black hover:bg-yellow-400",
+    purple: "bg-purple-600 text-white hover:bg-purple-500",
+    danger: "bg-red-600 text-white hover:bg-red-500",
+    success: "bg-green-600 text-white hover:bg-green-500",
   };
 
   const classes = [

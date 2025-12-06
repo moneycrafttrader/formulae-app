@@ -256,7 +256,7 @@ export default function CalculatorPage() {
             {/* Subscription CTA (only for non-developers) */}
             {!isDeveloper && trialsLeft <= 0 && (
               <div className="text-center mt-4">
-                <Button variant="warning" as="a" href="/subscribe">
+                <Button variant="warning" href="/subscribe">
                   Subscribe to Unlock Full Access
                 </Button>
               </div>

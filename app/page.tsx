@@ -31,7 +31,7 @@ export default function Home() {
             <p className="text-gray-300 text-sm mb-4">
               Calculate pivot points, support, resistance, and more with our powerful formula calculator.
             </p>
-            <Button variant="primary" as="a" href="/calculator" fullWidth>
+            <Button variant="primary" href="/calculator" fullWidth>
               Start Learning Today →
             </Button>
           </Card>
@@ -41,7 +41,7 @@ export default function Home() {
             <p className="text-gray-300 text-sm mb-4">
               Access your account dashboard, manage subscriptions, and track your usage.
             </p>
-            <Button variant="outline" as="a" href="/dashboard" fullWidth>
+            <Button variant="outline" href="/dashboard" fullWidth>
               ► Watch Preview
             </Button>
           </Card>
@@ -49,10 +49,10 @@ export default function Home() {
 
         {/* Navigation Links */}
         <div className="flex flex-wrap justify-center gap-4 pt-4">
-          <Button variant="primary" as="a" href="/login">
+          <Button variant="primary" href="/login">
             Login
           </Button>
-          <Button variant="secondary" as="a" href="/signup">
+          <Button variant="secondary" href="/signup">
             Sign Up
           </Button>
         </div>
