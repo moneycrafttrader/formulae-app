@@ -6,7 +6,7 @@ interface PageContainerProps {
   children: ReactNode;
   centered?: boolean;
   className?: string;
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "full";
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "7xl" | "full";
 }
 
 const maxWidthClasses = {
@@ -16,6 +16,7 @@ const maxWidthClasses = {
   xl: "max-w-screen-xl",
   "2xl": "max-w-screen-2xl",
   "3xl": "max-w-[1200px]",
+  "7xl": "max-w-7xl",
   full: "max-w-full",
 };
 
@@ -26,7 +27,9 @@ export default function PageContainer({
   maxWidth = "full",
 }: PageContainerProps) {
   const baseClasses = "min-h-screen bg-[#0a0a0a] text-white bg-grid-pattern";
-  const layoutClasses = centered ? "flex items-center justify-center px-4 py-12" : "px-6 py-10";
+  const layoutClasses = centered 
+    ? "flex items-center justify-center px-4 py-12" 
+    : "px-4 sm:px-6 lg:px-8 py-10";
 
   const widthWrapper = `${maxWidthClasses[maxWidth]} mx-auto w-full`;
   const contentWrapper = [

@@ -123,23 +123,23 @@ export default function DashboardPage() {
     : null;
 
   return (
-    <PageContainer>
+    <PageContainer maxWidth="7xl">
       <SectionTitle
-        title={
-          <>
-            <span className="text-white">
-              Welcome, {user?.email?.split("@")[0] || "User"}{" "}
-            </span>
-            <span className="text-[#00ff88]">👋</span>
-          </>
-        }
-        description="Your Formulae Dashboard"
-        className="mb-8"
-        size="md"
-      />
+          title={
+            <>
+              <span className="text-white">
+                Welcome, {user?.email?.split("@")[0] || "User"}{" "}
+              </span>
+              <span className="text-[#00ff88]">👋</span>
+            </>
+          }
+          description="Your Formulae Dashboard"
+          className="mb-8"
+          size="md"
+        />
 
-      {/* Subscription Card */}
-      <Card variant="light" className="mb-6">
+        {/* Subscription Card */}
+        <Card variant="light" className="mb-6">
         {isSubscribed ? (
           <>
             <h2 className="text-xl font-semibold text-white">

@@ -63,8 +63,12 @@ export default function Home() {
             <p className="text-gray-300 text-sm mb-4">
               Calculate pivot points, support, resistance, and more with our powerful formula calculator.
             </p>
-            <Button variant="primary" href="/calculator" fullWidth>
-              Start Learning Today →
+            <Button 
+              variant="primary" 
+              href={isLoggedIn ? "/calculator" : "/login"} 
+              fullWidth
+            >
+              Calculate Magic Formulae →
             </Button>
           </Card>
 
