@@ -17,7 +17,7 @@ const razorpay = new Razorpay({
 
 // Plan pricing configuration
 const PLAN_PRICES: Record<string, number> = {
-  "1m": 2999, // ₹2,999
+  "1m": 1, // ₹2,999
   "6m": 14999, // ₹14,999
   "12m": 24999, // ₹24,999
 };
