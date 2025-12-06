@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -108,16 +109,7 @@ export default function ProfilePage() {
         }
       }
 
-      // Update email if changed
-      if (email && email !== user.email) {
-        const { error: emailError } = await supabaseBrowser.auth.updateUser({
-          email: email,
-        });
-
-        if (emailError) {
-          throw emailError;
-        }
-      }
+      // Email cannot be changed directly - removed email update logic
 
       // Update password if provided
       if (newPassword && newPassword.length >= 6) {
@@ -130,12 +122,10 @@ export default function ProfilePage() {
         }
       }
 
-      // Update profile in profiles table
+      // Update profile in profiles table (no email update)
       const { error: profileError } = await supabaseBrowser
         .from("profiles")
-        .update({
-          email: email,
-        })
+        .update({})
         .eq("id", user.id);
 
       if (profileError) {
@@ -157,9 +147,26 @@ export default function ProfilePage() {
   };
 
   const requestPhoneChange = () => {
+    if (!newPhone) {
+      setError("Please enter a new phone number");
+      return;
+    }
     alert(
       "Your request to change phone number has been sent to admin. They will approve it shortly."
     );
+    setNewPhone("");
+    // TODO: Send request to backend admin panel
+  };
+
+  const requestEmailChange = () => {
+    if (!newEmail || !newEmail.includes("@")) {
+      setError("Please enter a valid new email address");
+      return;
+    }
+    alert(
+      "Your request to change email address has been sent to admin. They will approve it shortly."
+    );
+    setNewEmail("");
     // TODO: Send request to backend admin panel
   };
 
@@ -241,14 +248,29 @@ export default function ProfilePage() {
             placeholder="Enter your name"
           />
 
-          {/* Email */}
-          <Input
-            label="Email Address"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="your@email.com"
-          />
+          {/* Email (read-only) */}
+          <div className="space-y-3">
+            <Input
+              label="Email Address"
+              type="email"
+              value={email}
+              disabled
+              description="Email address cannot be changed directly."
+            />
+
+            {/* Request Email Change */}
+            <Input
+              label="Request New Email Address"
+              type="email"
+              placeholder="Enter new email address"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+
+            <Button onClick={requestEmailChange} variant="purple" fullWidth className="mt-1">
+              Request Email Change
+            </Button>
+          </div>
 
           {/* Phone Number (cannot change directly) */}
           <div className="space-y-3">

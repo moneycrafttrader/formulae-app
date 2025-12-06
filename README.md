@@ -7,7 +7,7 @@ A Next.js application for calculating trading formulae with secure subscription 
 - **Formula Calculator**: Calculate pivot points, support/resistance levels (R1-R4, S1-S4) using Classic and Camarilla formulas. Switch between formula types with tab navigation. Enter Open, High, Low, and Close (OHLC) values to generate trading levels.
 - **User Authentication**: Complete authentication system with Supabase Auth including email/password login, signup, password reset, and single-device login security
 - **Dashboard**: User dashboard with subscription status, trial tracking, and quick navigation
-- **Profile Management**: Update profile information, change password, upload profile picture, and manage account settings with real-time data sync
+- **Profile Management**: Update profile information (name and password), upload profile picture, and manage account settings with real-time data sync. Email and phone number changes require admin approval via request system.
 - **Route Protection**: Middleware-based route protection with session validation and subscription-based access control
 - **Single-Device Login**: Security feature that automatically logs out users from other devices when logging in from a new device
 - **Subscription Plans**: Multiple subscription tiers with pricing and feature comparison
@@ -376,14 +376,19 @@ All pages that use client-side features (like localStorage) implement proper hyd
 
 ## Pages
 
-- `/` - Home page with hero section and feature overview (public)
+- `/` - Home page with hero section and feature overview (public). Shows login/signup buttons when not authenticated, dashboard link when authenticated.
 - `/login` - User login with Supabase authentication (public)
 - `/signup` - User registration with automatic profile creation (public)
 - `/forgot-password` - Password reset via email (public)
 - `/dashboard` - User dashboard with subscription status and quick actions (protected)
-- `/calculator` - Formula calculator with Classic and Camarilla pivot point calculations. Enter OHLC values to generate R1-R4 and S1-S4 levels with tab-based formula switching (protected, subscription required)
-- `/profile` - User profile management with real-time data sync, photo upload, and password change (protected)
+- `/calculator` - Formula calculator with Classic and Camarilla pivot point calculations. Enter OHLC values to generate R1-R4 and S1-S4 levels with tab-based formula switching (protected, subscription required). Only visible in navigation when logged in.
+- `/profile` - User profile management with real-time data sync, photo upload, password change, and admin request system for email/phone changes (protected)
 - `/subscribe` - Subscription plans with pricing tiers (protected)
+
+**Navigation Features:**
+- Calculator tab only visible to authenticated users
+- Login/signup buttons hidden when user is logged in
+- Profile and Logout buttons shown when authenticated
 
 ## Development Notes
 

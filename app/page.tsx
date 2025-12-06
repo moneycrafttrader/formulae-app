@@ -1,12 +1,44 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import PageContainer from "@/app/components/PageContainer";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import SectionTitle from "@/app/components/SectionTitle";
+import { supabaseBrowser } from "@/app/lib/supabaseBrowser";
 
 export default function Home() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabaseBrowser.auth.getSession();
+        setIsLoggedIn(!!session);
+      } catch (error) {
+        setIsLoggedIn(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
   return (
     <PageContainer centered maxWidth="3xl">
       <div className="w-full space-y-8 text-center">
@@ -47,15 +79,26 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* Navigation Links */}
-        <div className="flex flex-wrap justify-center gap-4 pt-4">
-          <Button variant="primary" href="/login">
-            Login
-          </Button>
-          <Button variant="secondary" href="/signup">
-            Sign Up
-          </Button>
-        </div>
+        {/* Navigation Links - Only show if not logged in */}
+        {!loading && !isLoggedIn && (
+          <div className="flex flex-wrap justify-center gap-4 pt-4">
+            <Button variant="primary" href="/login">
+              Login
+            </Button>
+            <Button variant="secondary" href="/signup">
+              Sign Up
+            </Button>
+          </div>
+        )}
+        
+        {/* Show dashboard link if logged in */}
+        {!loading && isLoggedIn && (
+          <div className="flex flex-wrap justify-center gap-4 pt-4">
+            <Button variant="primary" href="/dashboard">
+              Go to Dashboard →
+            </Button>
+          </div>
+        )}
       </div>
     </PageContainer>
   );

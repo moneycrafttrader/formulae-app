@@ -1,19 +1,73 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Button from "./Button";
+import { supabaseBrowser } from "@/app/lib/supabaseBrowser";
+import { clearSessionToken } from "@/app/hooks/useSessionToken";
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabaseBrowser.auth.getSession();
+        setIsLoggedIn(!!session);
+      } catch (error) {
+        setIsLoggedIn(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabaseBrowser.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      clearSessionToken();
+      await fetch("/api/auth/logout", { method: "POST" });
+      await supabaseBrowser.auth.signOut();
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   const isActive = (path: string) => pathname === path;
 
-  const navLinks = [
-    { href: "/", label: "Home" },
+  // Base nav links (always visible)
+  const baseNavLinks = [{ href: "/", label: "Home" }];
+
+  // Protected nav links (only when logged in)
+  const protectedNavLinks = [
     { href: "/calculator", label: "Calculator" },
     { href: "/dashboard", label: "Dashboard" },
   ];
+
+  // Combine links based on auth status
+  const navLinks = isLoggedIn
+    ? [...baseNavLinks, ...protectedNavLinks]
+    : baseNavLinks;
 
   return (
     <nav className="bg-[#0a0a0a] border-b border-gray-800 shadow-lg shadow-black/50 sticky top-0 z-50 backdrop-blur-sm">
@@ -49,13 +103,33 @@ export default function Navigation() {
 
           {/* Auth Buttons */}
           <div className="flex items-center space-x-4">
-            <Button
-              variant="primary"
-              href="/signup"
-              className="hidden sm:inline-flex items-center gap-1"
-            >
-              Get Started →
-            </Button>
+            {!loading && !isLoggedIn && (
+              <Button
+                variant="primary"
+                href="/signup"
+                className="hidden sm:inline-flex items-center gap-1"
+              >
+                Get Started →
+              </Button>
+            )}
+            {!loading && isLoggedIn && (
+              <>
+                <Button
+                  variant="secondary"
+                  href="/profile"
+                  className="hidden sm:inline-flex items-center gap-1"
+                >
+                  Profile
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={handleLogout}
+                  className="hidden sm:inline-flex items-center gap-1"
+                >
+                  Logout
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
