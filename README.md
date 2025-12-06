@@ -5,9 +5,11 @@ A Next.js application for calculating trading formulae with secure subscription 
 ## Features
 
 - **Formula Calculator**: Calculate pivot points, support/resistance levels (R1-R4, S1-S4) using Classic and Camarilla formulas. Switch between formula types with tab navigation. Enter Open, High, Low, and Close (OHLC) values to generate trading levels.
-- **User Authentication**: Secure login, signup, and password recovery with dark-themed forms
+- **User Authentication**: Complete authentication system with Supabase Auth including email/password login, signup, password reset, and single-device login security
 - **Dashboard**: User dashboard with subscription status, trial tracking, and quick navigation
-- **Profile Management**: Update profile information, change password, upload profile picture, and manage account settings
+- **Profile Management**: Update profile information, change password, upload profile picture, and manage account settings with real-time data sync
+- **Route Protection**: Middleware-based route protection with session validation and subscription-based access control
+- **Single-Device Login**: Security feature that automatically logs out users from other devices when logging in from a new device
 - **Subscription Plans**: Multiple subscription tiers with pricing and feature comparison
 - **Trial System**: Free trial system with localStorage-based tracking (3 free calculations)
 - **Responsive Design**: Modern, dark-themed UI matching Magic Formulae design with consistent styling across all pages
@@ -29,35 +31,50 @@ A Next.js application for calculating trading formulae with secure subscription 
 ```
 formulae-app/
 ├── app/
-│   ├── components/          # Shared reusable components
+│   ├── (auth)/            # Authentication route group
+│   │   ├── login/         # Login page with Supabase Auth
+│   │   ├── signup/        # Signup page with profile creation
+│   │   └── forgot-password/ # Password reset page
+│   ├── api/               # API routes
+│   │   ├── auth/          # Authentication API routes
+│   │   │   ├── login/     # Login endpoint (legacy, now uses client-side)
+│   │   │   ├── logout/    # Logout endpoint
+│   │   │   └── update-session-token/ # Session token management
+│   │   ├── create-order/  # Razorpay order creation endpoint
+│   │   ├── verify-payment/ # Payment verification endpoint
+│   │   └── razorpay-webhook/ # Webhook handler for payment events
+│   ├── components/        # Shared reusable components
 │   │   ├── PageContainer.tsx  # Page layout wrapper with dark theme
 │   │   ├── Card.tsx          # Card component with dark variant
 │   │   ├── Button.tsx        # Button component with multiple variants
 │   │   ├── Input.tsx         # Form inputs with labels, helper text, and error states
-│   │   ├── SectionTitle.tsx  # Consistent section headers with optional descriptions
+│   │   ├── SectionTitle.tsx  # Consistent section headers
 │   │   ├── FormulaTabs.tsx  # Tab switcher for Classic/Camarilla formula types
-│   │   └── Navigation.tsx    # Fixed navigation bar with branding
-│   ├── api/                # API routes
-│   │   ├── create-order/   # Razorpay order creation endpoint
-│   │   │   └── route.ts    # POST endpoint for creating payment orders
-│   │   └── verify-payment/ # Payment verification endpoint
-│   │       └── route.ts    # POST endpoint for verifying Razorpay payments
-│   ├── lib/                # Utility functions and constants
-│   │   ├── theme.ts        # Theme constants (dark theme, colors)
-│   │   ├── utils.ts        # Helper functions (localStorage, SSR safe)
-│   │   └── supabase.ts     # Supabase client initialization
-│   ├── calculator/         # Calculator page and formula utilities
-│   │   ├── page.tsx        # Main calculator interface with formula tabs
+│   │   ├── Navigation.tsx    # Fixed navigation bar with branding
+│   │   └── SessionTokenProvider.tsx # Session token management provider
+│   ├── hooks/             # Custom React hooks
+│   │   └── useSessionToken.ts # Session token synchronization hook
+│   ├── lib/               # Utility functions and constants
+│   │   ├── theme.ts       # Theme constants (dark theme, colors)
+│   │   ├── utils.ts       # Helper functions (localStorage, SSR safe)
+│   │   ├── supabase.ts    # Legacy Supabase client (for payment routes)
+│   │   ├── supabaseBrowser.ts # Client-side Supabase client
+│   │   ├── supabaseServer.ts # Server-side Supabase client
+│   │   └── subscription.ts # Subscription checking utilities
+│   ├── calculator/        # Calculator page and formula utilities
+│   │   ├── page.tsx       # Main calculator interface with formula tabs
 │   │   └── formulaUtils.ts # Classic and Camarilla pivot point calculations
-│   ├── dashboard/         # Dashboard page
-│   ├── login/             # Login page
-│   ├── signup/            # Signup page
-│   ├── profile/           # Profile page
-│   ├── forgot-password/   # Password recovery page
+│   ├── dashboard/         # Dashboard page with user data
+│   ├── profile/           # Profile management page
 │   ├── subscribe/         # Subscription plans page
-│   ├── layout.tsx         # Root layout with Navigation
+│   ├── middleware.ts      # Route protection middleware
+│   ├── layout.tsx         # Root layout with Navigation and SessionTokenProvider
 │   ├── page.tsx           # Home page
 │   └── globals.css        # Global styles (dark theme, grid pattern)
+├── supabase-schema.sql    # Complete database schema
+├── migrate-profiles-table.sql # Migration for existing profiles table
+├── complete-db-schema.sql # Complete database setup script
+├── AUTHENTICATION.md      # Complete authentication system documentation
 ├── package.json
 ├── tailwind.config.js     # Tailwind config with custom colors
 └── tsconfig.json
@@ -89,7 +106,10 @@ pnpm install
 
 **Required Dependencies:**
 - `razorpay` - Payment gateway integration
-- `@supabase/supabase-js` - Supabase client for database operations
+- `@supabase/supabase-js` - Supabase client for authentication and database operations
+- `next` - Next.js framework (App Router)
+- `react` & `react-dom` - React library
+- `typescript` - TypeScript support
 
 These are automatically installed when you run `npm install` (they're listed in `package.json`).
 
@@ -194,7 +214,55 @@ When developer mode is enabled:
 - Shows "🛠️ Developer Mode: Unlimited Calculations" message
 - Trial counter is hidden
 
+### Authentication System
+
+The application uses Supabase Auth for complete user authentication with the following features:
+
+- **Email/Password Authentication**: Secure login and signup
+- **Password Reset**: Email-based password recovery
+- **Single-Device Login**: Automatic logout from other devices when logging in from a new device
+- **Session Token Validation**: Middleware validates session tokens on every protected route
+- **Route Protection**: Automatic redirect to login for unauthenticated users
+- **Subscription Guards**: Routes can require active subscriptions
+
+**Key Files:**
+- `app/middleware.ts` - Route protection and session validation
+- `app/(auth)/login/page.tsx` - Login page
+- `app/(auth)/signup/page.tsx` - Signup page with profile creation
+- `app/hooks/useSessionToken.ts` - Session token synchronization
+- `app/lib/supabaseBrowser.ts` - Client-side Supabase client
+- `app/lib/supabaseServer.ts` - Server-side Supabase client
+
+**Protected Routes:**
+- `/dashboard` - Requires authentication
+- `/calculator` - Requires authentication + subscription
+- `/profile` - Requires authentication
+- `/subscribe` - Requires authentication
+
+**Public Routes:**
+- `/` - Home page
+- `/login` - Login page
+- `/signup` - Signup page
+- `/forgot-password` - Password reset
+
+See `AUTHENTICATION.md` for complete authentication documentation.
+
 ### API Routes
+
+#### Authentication Routes
+
+**POST `/api/auth/logout`**
+
+Logs out the current user and invalidates the session token.
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+#### Payment Routes
 
 #### POST `/api/create-order`
 
@@ -308,14 +376,14 @@ All pages that use client-side features (like localStorage) implement proper hyd
 
 ## Pages
 
-- `/` - Home page with hero section and feature overview
-- `/login` - User login with dark-themed form
-- `/signup` - User registration with comprehensive form
-- `/forgot-password` - Password recovery page
-- `/dashboard` - User dashboard with subscription status and quick actions
-- `/calculator` - Formula calculator with Classic and Camarilla pivot point calculations. Enter OHLC values to generate R1-R4 and S1-S4 levels with tab-based formula switching
-- `/profile` - User profile management with photo upload
-- `/subscribe` - Subscription plans with pricing tiers
+- `/` - Home page with hero section and feature overview (public)
+- `/login` - User login with Supabase authentication (public)
+- `/signup` - User registration with automatic profile creation (public)
+- `/forgot-password` - Password reset via email (public)
+- `/dashboard` - User dashboard with subscription status and quick actions (protected)
+- `/calculator` - Formula calculator with Classic and Camarilla pivot point calculations. Enter OHLC values to generate R1-R4 and S1-S4 levels with tab-based formula switching (protected, subscription required)
+- `/profile` - User profile management with real-time data sync, photo upload, and password change (protected)
+- `/subscribe` - Subscription plans with pricing tiers (protected)
 
 ## Development Notes
 
@@ -345,8 +413,44 @@ Edit `app/lib/theme.ts` to adjust tokens. Update palette, spacing, radii, font s
 
 ### Database Setup
 
-The application uses Supabase for storing payment records. You need to create a `payments` table with the following schema:
+The application uses Supabase for authentication, user profiles, subscriptions, and payment records. You need to set up the database schema before running the application.
 
+#### Quick Setup
+
+1. **Go to your Supabase Dashboard** → SQL Editor
+2. **Run the complete schema**:
+   - For new installations: Run `complete-db-schema.sql`
+   - For existing installations: Run `migrate-profiles-table.sql` to add missing columns
+
+#### Required Tables
+
+**1. Profiles Table** (stores user profiles and session tokens)
+```sql
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  last_session_token TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**2. Subscriptions Table** (stores user subscriptions)
+```sql
+CREATE TABLE subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  plan TEXT NOT NULL CHECK (plan IN ('1m', '6m', '12m')),
+  start_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  end_date TIMESTAMPTZ NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'cancelled')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+**3. Payments Table** (stores Razorpay payment records)
 ```sql
 CREATE TABLE payments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -360,12 +464,21 @@ CREATE TABLE payments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Create index for faster lookups
-CREATE INDEX idx_payments_razorpay_order_id ON payments(razorpay_order_id);
-CREATE INDEX idx_payments_razorpay_payment_id ON payments(razorpay_payment_id);
-CREATE INDEX idx_payments_status ON payments(status);
 ```
+
+See `supabase-schema.sql` for the complete schema including:
+- Row Level Security (RLS) policies
+- Indexes for performance
+- Triggers for auto-creating profiles
+- Auto-update timestamps
+
+#### Supabase Configuration
+
+1. **Enable Email Auth** in Supabase Dashboard → Authentication → Providers
+2. **Set up email templates** (optional) in Authentication → Email Templates
+3. **Configure redirect URLs**:
+   - Site URL: `http://localhost:3000` (development)
+   - Redirect URLs: `http://localhost:3000/**`
 
 ### localStorage Usage
 
@@ -385,10 +498,17 @@ Always use the utility functions from `app/lib/utils.ts` when accessing localSto
 - **Gradient Effects**: Purple/pink gradients for special buttons
 - **Shadow Effects**: Green glow effects on primary buttons
 
+## Security Features
+
+- **Row Level Security (RLS)**: Database-level security policies ensure users can only access their own data
+- **Session Token Validation**: Every protected route validates session tokens for single-device login
+- **Middleware Protection**: Server-side route protection before pages load
+- **Secure Password Storage**: Passwords are hashed and stored securely by Supabase
+- **Auto Session Refresh**: Automatic token refresh handled by Supabase
+- **CSRF Protection**: Built-in protection via Supabase Auth
+
 ## Future Enhancements
 
-- Payment webhook handling for order status updates
-- User authentication with Supabase Auth
 - User subscription management dashboard
 - Additional formula calculations
 - Export/import functionality (CSV, PDF)
@@ -396,12 +516,21 @@ Always use the utility functions from `app/lib/utils.ts` when accessing localSto
 - Real-time stock data integration
 - Mobile app version
 - Dark/light theme toggle (optional)
+- Two-factor authentication (2FA)
 
 ## Learn More
 
 - [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Supabase Auth Guide](https://supabase.com/docs/guides/auth)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [TypeScript Documentation](https://www.typescriptlang.org/docs/)
+
+## Related Documentation
+
+- **`AUTHENTICATION.md`** - Complete authentication system documentation with setup instructions, security features, and usage examples
+- **`supabase-schema.sql`** - Complete database schema with all tables, triggers, and RLS policies
+- **`migrate-profiles-table.sql`** - Migration script for adding missing columns to existing profiles table
 
 ## License
 
