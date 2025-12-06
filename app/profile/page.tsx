@@ -26,6 +26,7 @@ export default function ProfilePage() {
   // Load user profile data
   useEffect(() => {
     loadUserProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUserProfile = async () => {

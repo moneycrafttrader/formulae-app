@@ -38,7 +38,7 @@ export async function createServerClient() {
         }
       },
     },
-  });
+  } as any); // Type assertion needed as cookies option exists but not in types
 }
 
 /**
@@ -60,7 +60,7 @@ export function createMiddlewareClient(request: NextRequest) {
         // This will be handled by the response
       },
     },
-  });
+  } as any); // Type assertion needed as cookies option exists but not in types
 }
 
 /**
