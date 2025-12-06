@@ -1,74 +1,59 @@
 "use client";
 
-import { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
+import React from "react";
 import Link from "next/link";
 
-type ButtonVariant = "primary" | "secondary" | "success" | "danger" | "warning" | "purple" | "outline";
-
-interface BaseButtonProps {
-  children: ReactNode;
-  variant?: ButtonVariant;
-  fullWidth?: boolean;
+type ButtonProps = {
+  children: React.ReactNode;
+  variant?: "primary" | "secondary" | "outline" | "ghost";
+  href?: string;
   className?: string;
-}
-
-interface ButtonAsButton extends BaseButtonProps, ButtonHTMLAttributes<HTMLButtonElement> {
-  as?: "button";
-  href?: never;
-}
-
-interface ButtonAsLink extends BaseButtonProps, Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href"> {
-  as: "a";
-  href: string;
-}
-
-type ButtonProps = ButtonAsButton | ButtonAsLink;
-
-const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    "bg-[#00ff88] hover:bg-[#00cc6f] text-black border border-[#00ff88] shadow-lg shadow-[#00ff88]/30",
-  secondary: "bg-[#141414] hover:bg-[#1f1f1f] text-white border border-gray-700",
-  success: "bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500",
-  danger: "bg-red-600 hover:bg-red-500 text-white border border-red-500",
-  warning: "bg-yellow-400 hover:bg-yellow-300 text-black border border-yellow-300",
-  purple: "bg-gradient-to-r from-purple-700 to-indigo-700 text-white border border-purple-600",
-  outline:
-    "bg-transparent text-[#00ff88] border border-[#00ff88] hover:bg-[#00ff88]/10 hover:text-black",
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: "button" | "submit" | "reset";
+  fullWidth?: boolean;
 };
-
-const baseClasses =
-  "inline-flex items-center justify-center gap-2 rounded-md font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#00ff88] disabled:opacity-60 disabled:cursor-not-allowed";
 
 export default function Button({
   children,
   variant = "primary",
+  href,
+  className,
+  onClick,
+  disabled = false,
+  type = "button",
   fullWidth = false,
-  className = "",
-  ...props
 }: ButtonProps) {
-  const composedClasses = [
-    baseClasses,
-    "px-4 py-2.5 text-sm",
-    variantClasses[variant],
-    fullWidth ? "w-full" : "w-fit",
+  const baseStyles =
+    "px-4 py-2 rounded-md font-medium transition-all duration-200";
+
+  const variants = {
+    primary: "bg-green-500 text-black hover:bg-green-400",
+    secondary: "bg-gray-700 text-white hover:bg-gray-600",
+    outline: "border border-gray-500 text-white hover:bg-gray-800",
+    ghost: "text-gray-300 hover:text-white",
+  };
+
+  const classes = [
+    baseStyles,
+    variants[variant],
+    fullWidth && "w-full",
     className,
   ]
     .filter(Boolean)
     .join(" ");
 
-  if (props.as === "a" && "href" in props) {
-    const { as, ...linkProps } = props;
+  if (href) {
     return (
-      <Link href={linkProps.href} className={composedClasses} {...linkProps}>
+      <Link href={href} className={classes}>
         {children}
       </Link>
     );
   }
 
   return (
-    <button className={composedClasses} {...(props as ButtonHTMLAttributes<HTMLButtonElement>)}>
+    <button type={type} className={classes} onClick={onClick} disabled={disabled}>
       {children}
     </button>
   );
 }
-
