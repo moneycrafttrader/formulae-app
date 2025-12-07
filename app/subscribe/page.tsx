@@ -40,40 +40,57 @@ export default function SubscribePage() {
   async function startPayment(plan: string) {
     setProcessing(plan);
 
-    const res = await fetch("/api/create-order", {
-      method: "POST",
-      body: JSON.stringify({ plan }),
-    });
+    try {
+      const res = await fetch("/api/create-order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Ensure cookies are sent
+        body: JSON.stringify({ plan }),
+      });
 
-    if (res.status !== 200) {
-      alert("Error creating Razorpay order.");
-      setProcessing(null);
-      return;
-    }
-
-    const order = await res.json();
-
-    const options = {
-      key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-      amount: order.amount,
-      currency: "INR",
-      name: "Magic Formulae",
-      description: "Subscription Plan",
-      order_id: order.id,
-      handler: function () {
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "Unknown error" }));
+        alert(`Error creating Razorpay order: ${errorData.error || res.statusText}`);
         setProcessing(null);
-        setTimeout(refresh, 2000);
-      },
-      prefill: {},
-      theme: { color: "#00ff88" },
-    };
+        return;
+      }
 
-    const rzp = new window.Razorpay(options);
-    rzp.on("payment.failed", function () {
+      const order = await res.json();
+
+      if (!order.id || !order.amount) {
+        alert("Invalid order response from server.");
+        setProcessing(null);
+        return;
+      }
+
+      const options: RazorpayOptions = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+        amount: order.amount,
+        currency: "INR",
+        name: "Magic Formulae",
+        description: "Subscription Plan",
+        order_id: order.id,
+        handler: function () {
+          setProcessing(null);
+          setTimeout(refresh, 2000);
+        },
+        prefill: {},
+        theme: { color: "#00ff88" },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", function () {
+        setProcessing(null);
+        alert("Payment failed. Please try again.");
+      });
+      rzp.open();
+    } catch (error) {
+      console.error("Payment initiation error:", error);
+      alert("Failed to initiate payment. Please try again.");
       setProcessing(null);
-      alert("Payment failed. Please try again.");
-    });
-    rzp.open();
+    }
   }
 
   // Format date

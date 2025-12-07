@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import crypto from "crypto";
 import { createServerClient } from "@/app/lib/supabaseServer";
-import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const PLAN_PRICES: Record<string, number> = {
   "1m": 2999,

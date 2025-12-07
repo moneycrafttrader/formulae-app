@@ -10,7 +10,6 @@ import Input from "@/app/components/Input";
 import SectionTitle from "@/app/components/SectionTitle";
 import { setSessionToken } from "@/app/hooks/useSessionToken";
 import { supabaseBrowser } from "@/app/lib/supabaseBrowser";
-import { getApiUrl } from "@/app/lib/baseUrl";
 
 function LoginForm() {
   const router = useRouter();
@@ -72,28 +71,36 @@ function LoginForm() {
       // Generate session token
       const sessionToken = crypto.randomUUID();
 
-      // Store session token via API (updates both profiles and device_lock)
-      // Use absolute URL to ensure it works in production
-      const tokenRes = await fetch(getApiUrl("/api/auth/store-session-token"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          session_token: sessionToken,
-        }),
-      });
-
-      if (!tokenRes.ok) {
-        console.error("Failed to store session token");
-        // Still allow login, but device-lock may not work
-      }
-
-      // Store session token in localStorage and cookie
+      // Store session token in localStorage and cookie immediately
+      // This ensures it's available even if API call fails
       setSessionToken(sessionToken);
       
-      // Also set cookie for middleware access
-      document.cookie = `session_token=${sessionToken}; path=/; max-age=86400; SameSite=Lax`;
+      // Set cookie with Secure flag only on HTTPS (production)
+      const isSecure = window.location.protocol === "https:";
+      document.cookie = `session_token=${sessionToken}; path=/; max-age=86400; SameSite=Lax${isSecure ? "; Secure" : ""}`;
+
+      // Try to store session token via API (non-blocking)
+      // Use relative URL which works better in production
+      try {
+        const tokenRes = await fetch("/api/auth/store-session-token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Ensure cookies are sent
+          body: JSON.stringify({
+            session_token: sessionToken,
+          }),
+        });
+
+        if (!tokenRes.ok) {
+          console.error("Failed to store session token in database, but continuing with login");
+        }
+      } catch (tokenError) {
+        // Non-blocking: Log error but don't fail login
+        console.error("Error storing session token:", tokenError);
+        // Continue with login even if token storage fails
+      }
 
       // Wait a moment for Supabase cookies to be set before redirecting
       // This ensures middleware can read the session properly

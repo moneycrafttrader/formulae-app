@@ -43,20 +43,49 @@ export default function Navigation() {
 
   const handleLogout = async () => {
     try {
-      const token = localStorage.getItem("session_token");
+      // Clear session token from localStorage first
       clearSessionToken();
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-session-token": token ?? "",
-        },
-      });
-      await supabaseBrowser.auth.signOut();
-      router.push("/");
-      router.refresh();
+
+      // Clear all cookies on client side
+      document.cookie = "session_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      
+      // Clear Supabase cookies (they use the project ref)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+      if (supabaseUrl) {
+        const projectRef = supabaseUrl.split("//")[1]?.split(".")[0] || "supabase";
+        document.cookie = `sb-${projectRef}-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+
+      // Try to call logout API (non-blocking)
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+        });
+      } catch (apiError) {
+        console.error("Logout API error:", apiError);
+        // Continue with logout even if API call fails
+      }
+
+      // Sign out from Supabase (non-blocking)
+      try {
+        await supabaseBrowser.auth.signOut();
+      } catch (signOutError) {
+        console.error("Supabase signOut error:", signOutError);
+        // Continue with logout even if signOut fails
+      }
+
+      // Force redirect using window.location to ensure clean state
+      window.location.href = "/";
     } catch (error) {
       console.error("Logout error:", error);
+      // Even on error, try to redirect to home
+      window.location.href = "/";
     }
   };
 
