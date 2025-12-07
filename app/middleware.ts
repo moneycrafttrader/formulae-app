@@ -4,7 +4,7 @@ import { createMiddlewareClient } from "@/app/lib/supabaseServer";
 import { isUserSubscribed } from "@/app/lib/subscription";
 
 // Routes that don't require authentication
-const publicRoutes = ["/", "/login", "/signup", "/forgot-password"];
+const publicRoutes = ["/", "/login", "/signup", "/forgot-password", "/auth/callback"];
 
 // Routes that require authentication
 const protectedRoutes = ["/dashboard", "/calculator", "/profile", "/subscribe"];
@@ -17,6 +17,11 @@ const subscriptionRequiredRoutes = ["/calculator"];
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Allow auth callback route without any checks (handles its own authentication)
+  if (pathname.startsWith("/auth/callback")) {
+    return NextResponse.next();
+  }
 
   // Check if route is public
   const isPublicRoute = publicRoutes.some((route) => pathname === route);

@@ -89,6 +89,7 @@ export default function SignupPage() {
             data: {
               name: form.name,
             },
+            emailRedirectTo: "https://formulae-app.vercel.app/auth/callback",
           },
         });
 

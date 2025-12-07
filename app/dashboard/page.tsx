@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import PageContainer from "@/app/components/PageContainer";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import SectionTitle from "@/app/components/SectionTitle";
 import { supabaseBrowser } from "@/app/lib/supabaseBrowser";
-import { clearSessionToken } from "@/app/hooks/useSessionToken";
+import { clearSessionToken, setSessionToken } from "@/app/hooks/useSessionToken";
 
 interface UserProfile {
   id: string;
@@ -22,12 +22,26 @@ interface SubscriptionData {
   status: string;
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
+
+  useEffect(() => {
+    // Handle session token from auth callback
+    const sessionToken = searchParams.get("session_token");
+    if (sessionToken) {
+      // Store session token in localStorage
+      setSessionToken(sessionToken);
+      // Remove session_token from URL without page reload
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("session_token");
+      window.history.replaceState({}, "", newUrl.toString());
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     loadUserData();
@@ -219,5 +233,19 @@ export default function DashboardPage() {
         </Button>
       </div>
     </PageContainer>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <PageContainer>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-white">Loading...</div>
+        </div>
+      </PageContainer>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
