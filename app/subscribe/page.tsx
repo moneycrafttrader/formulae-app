@@ -8,6 +8,7 @@ import Button from "@/app/components/Button";
 import SectionTitle from "@/app/components/SectionTitle";
 import Link from "next/link";
 import { supabaseBrowser } from "@/app/lib/supabaseBrowser";
+import { getApiUrl } from "@/app/lib/baseUrl";
 
 // Allow Razorpay to exist on window object
 declare global {
@@ -132,7 +133,7 @@ export default function SubscribePage() {
 
     // 1️⃣ Create order on backend
     const token = localStorage.getItem("session_token");
-    const res = await fetch("/api/create-order", {
+    const res = await fetch(getApiUrl("/api/create-order"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -162,7 +163,7 @@ export default function SubscribePage() {
       handler: async function (response: any) {
         // Verify payment on backend
         const token = localStorage.getItem("session_token");
-        const verifyRes = await fetch("/api/verify-payment", {
+        const verifyRes = await fetch(getApiUrl("/api/verify-payment"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

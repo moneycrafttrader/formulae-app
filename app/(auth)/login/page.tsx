@@ -10,6 +10,7 @@ import Input from "@/app/components/Input";
 import SectionTitle from "@/app/components/SectionTitle";
 import { setSessionToken } from "@/app/hooks/useSessionToken";
 import { supabaseBrowser } from "@/app/lib/supabaseBrowser";
+import { getApiUrl } from "@/app/lib/baseUrl";
 
 function LoginForm() {
   const router = useRouter();
@@ -72,7 +73,8 @@ function LoginForm() {
       const sessionToken = crypto.randomUUID();
 
       // Store session token via API (updates both profiles and device_lock)
-      const tokenRes = await fetch("/api/auth/store-session-token", {
+      // Use absolute URL to ensure it works in production
+      const tokenRes = await fetch(getApiUrl("/api/auth/store-session-token"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

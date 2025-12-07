@@ -80,8 +80,13 @@ export async function middleware(request: NextRequest) {
     }
 
     // Check session token match (single device login)
-    if (!clientToken || profile.last_session_token !== clientToken) {
-      // Token mismatch - invalidate session, clear cookies, and redirect
+    // If last_session_token is null and clientToken exists, this is a new session - allow it
+    // If last_session_token exists and doesn't match clientToken, invalidate session
+    const hasStoredToken = profile.last_session_token !== null && profile.last_session_token !== undefined;
+    const tokenMismatch = hasStoredToken && profile.last_session_token !== clientToken;
+    
+    if (!clientToken || tokenMismatch) {
+      // Token mismatch or no client token - invalidate session, clear cookies, and redirect
       await supabase.auth.signOut();
       const redirectUrl = new URL("/login", request.url);
       redirectUrl.searchParams.set("session", "expired");

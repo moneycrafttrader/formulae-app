@@ -46,23 +46,31 @@ export async function POST(request: NextRequest) {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-      console.error("RAZORPAY_WEBHOOK_SECRET is not configured");
+      console.error("❌ [webhook] RAZORPAY_WEBHOOK_SECRET is not configured");
       // Always return 200 to avoid Razorpay retries
       return NextResponse.json({ success: true });
     }
 
-    // Generate expected signature
+    // Generate expected signature using crypto.createHmac
     const expectedSignature = crypto
       .createHmac("sha256", webhookSecret)
       .update(rawBody)
       .digest("hex");
+
+    console.log("🔐 [webhook] Signature validation:", {
+      receivedSignature: signature.substring(0, 20) + "...",
+      expectedSignature: expectedSignature.substring(0, 20) + "...",
+    });
 
     // Compare signatures using constant-time comparison
     const signatureBuffer = Buffer.from(signature, "hex");
     const expectedBuffer = Buffer.from(expectedSignature, "hex");
 
     if (signatureBuffer.length !== expectedBuffer.length) {
-      console.error("Invalid Razorpay webhook signature (length mismatch)");
+      console.error("❌ [webhook] Invalid Razorpay webhook signature (length mismatch):", {
+        receivedLength: signatureBuffer.length,
+        expectedLength: expectedBuffer.length,
+      });
       // Always return 200 to avoid Razorpay retries
       return NextResponse.json({ success: true });
     }
@@ -73,10 +81,12 @@ export async function POST(request: NextRequest) {
     );
 
     if (!isValidSignature) {
-      console.error("Invalid Razorpay webhook signature");
+      console.error("❌ [webhook] Invalid Razorpay webhook signature (mismatch)");
       // Always return 200 to avoid Razorpay retries
       return NextResponse.json({ success: true });
     }
+
+    console.log("✅ [webhook] Signature validated successfully");
 
     // 4️⃣ Decode the event
     let event: any;
@@ -96,16 +106,54 @@ export async function POST(request: NextRequest) {
       const paymentId = payment.id;
       const orderId = payment.order_id;
       const amount = payment.amount; // Amount in paise
-      const userId = payment.notes?.user_id;
-      const plan = payment.notes?.plan; // Should be "1m", "6m", or "12m"
+      const amountInRupees = amount / 100; // Convert paise to rupees
+      
+      // Try to get user_id and plan from payment notes (may be missing in test payments)
+      let userId = payment.notes?.user_id;
+      let plan = payment.notes?.plan; // Should be "1m", "6m", or "12m"
       
       // Extract payment signature if available (for payment verification signature)
       // Note: This is different from webhook signature
       const razorpaySignature = payment.signature || null;
 
-      // Validate required fields
+      console.log("🔔 [webhook] Payment captured event:", {
+        paymentId,
+        orderId,
+        amount: amountInRupees,
+        userIdFromNotes: userId,
+        planFromNotes: plan,
+        hasNotes: !!payment.notes,
+      });
+
+      // Fallback: If notes are missing (common in test payments), fetch from pending payment record
+      if ((!userId || !plan) && orderId) {
+        console.log("⚠️ [webhook] Missing user_id or plan in notes, fetching from pending payment record...");
+        
+        const { data: pendingPayment, error: fetchError } = await supabaseServiceRole
+          .from("payments")
+          .select("user_id, plan, amount, currency")
+          .eq("razorpay_order_id", orderId)
+          .eq("status", "pending")
+          .maybeSingle();
+
+        if (fetchError) {
+          console.error("❌ [webhook] Error fetching pending payment:", fetchError);
+        } else if (pendingPayment) {
+          userId = userId || pendingPayment.user_id;
+          plan = plan || pendingPayment.plan;
+          console.log("✅ [webhook] Retrieved from pending payment:", {
+            userId,
+            plan,
+            amount: pendingPayment.amount,
+          });
+        } else {
+          console.warn("⚠️ [webhook] No pending payment found for order_id:", orderId);
+        }
+      }
+
+      // Validate required fields after fallback
       if (!paymentId || !amount || !plan || !userId) {
-        console.error("❌ Missing required payment fields:", {
+        console.error("❌ [webhook] Missing required payment fields after fallback:", {
           paymentId,
           amount,
           plan,
@@ -118,44 +166,94 @@ export async function POST(request: NextRequest) {
 
       // Validate plan
       if (!["1m", "6m", "12m"].includes(plan)) {
-        console.error("❌ Invalid plan:", plan);
+        console.error("❌ [webhook] Invalid plan:", plan);
         // Always return 200 to avoid Razorpay retries
         return NextResponse.json({ success: true });
       }
 
-      // 6️⃣ Update payments table (using service role to bypass RLS)
+      // 6️⃣ Update payments table fully (using service role to bypass RLS)
       // Idempotent: If order_id not found or already updated, continue processing
       if (orderId) {
+        const now = new Date();
+        
         // Check if payment already exists and is completed (idempotency check)
         const { data: existingPayment } = await supabaseServiceRole
           .from("payments")
-          .select("id, status, razorpay_payment_id")
+          .select("id, status, razorpay_payment_id, user_id, plan, amount")
           .eq("razorpay_order_id", orderId)
           .maybeSingle();
 
-        // Only update if not already completed (handle retries)
-        if (existingPayment && existingPayment.status !== "completed") {
-          const { error: paymentUpdateError } = await supabaseServiceRole
-            .from("payments")
-            .update({
+        // Update payment record with all fields
+        if (existingPayment) {
+          // Only update if not already completed (handle retries/idempotency)
+          if (existingPayment.status !== "completed") {
+            const updateData: any = {
               status: "completed",
               razorpay_payment_id: paymentId,
               razorpay_signature: razorpaySignature,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("razorpay_order_id", orderId);
+              updated_at: now.toISOString(),
+            };
 
-          if (paymentUpdateError) {
-            console.error("❌ Error updating payments table:", paymentUpdateError);
-            // Continue processing even if payment update fails
+            // Update amount if not already set (convert from paise to rupees)
+            if (!existingPayment.amount) {
+              updateData.amount = amountInRupees;
+            }
+
+            // Ensure user_id and plan are set (in case they were missing before)
+            if (!existingPayment.user_id && userId) {
+              updateData.user_id = userId;
+            }
+            if (!existingPayment.plan && plan) {
+              updateData.plan = plan;
+            }
+
+            const { error: paymentUpdateError } = await supabaseServiceRole
+              .from("payments")
+              .update(updateData)
+              .eq("razorpay_order_id", orderId);
+
+            if (paymentUpdateError) {
+              console.error("❌ [webhook] Error updating payments table:", paymentUpdateError);
+              // Continue processing even if payment update fails
+            } else {
+              console.log("✅ [webhook] Payment record fully updated:", {
+                orderId,
+                paymentId,
+                userId,
+                plan,
+                amount: amountInRupees,
+                status: "completed",
+              });
+            }
           } else {
-            console.log("✅ Payment updated:", { orderId, paymentId, status: "completed" });
+            console.log("ℹ️ [webhook] Payment already completed (webhook retry):", orderId);
           }
-        } else if (!existingPayment) {
-          console.warn("⚠️ Payment record not found for order_id:", orderId);
-          // Continue processing - subscription will still be created
         } else {
-          console.log("ℹ️ Payment already completed (webhook retry):", orderId);
+          // Payment record not found - create it if we have all required data
+          console.warn("⚠️ [webhook] Payment record not found for order_id, creating new record:", orderId);
+          
+          if (userId && plan) {
+            const { error: createError } = await supabaseServiceRole
+              .from("payments")
+              .insert({
+                user_id: userId,
+                razorpay_order_id: orderId,
+                razorpay_payment_id: paymentId,
+                plan: plan,
+                amount: amountInRupees,
+                currency: "INR",
+                status: "completed",
+                razorpay_signature: razorpaySignature,
+                created_at: now.toISOString(),
+                updated_at: now.toISOString(),
+              });
+
+            if (createError) {
+              console.error("❌ [webhook] Error creating payment record:", createError);
+            } else {
+              console.log("✅ [webhook] Payment record created:", { orderId, paymentId, userId, plan });
+            }
+          }
         }
       }
 
@@ -173,40 +271,51 @@ export async function POST(request: NextRequest) {
           .eq("status", "active")
           .maybeSingle();
 
-        // Calculate end_date based on plan duration
-        const planDays = plan === "1m" ? 30 : plan === "6m" ? 180 : 365;
+        // Calculate end_date based on plan duration using calculateEndDate utility
         const endDate = calculateEndDate(plan as "1m" | "6m" | "12m", now);
+        const planDays = plan === "1m" ? 30 : plan === "6m" ? 180 : 365;
+
+        console.log("📅 [webhook] Subscription calculation:", {
+          userId,
+          plan,
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+          planDays,
+          hasExistingSubscription: !!existingSubscription,
+          existingEndDate: existingSubscription?.end_date,
+        });
 
         // If user has an active subscription that hasn't expired, extend it from current end_date
         if (existingSubscription && new Date(existingSubscription.end_date) > now) {
           // Extend existing subscription from current end_date
           const currentEndDate = new Date(existingSubscription.end_date);
-          currentEndDate.setDate(currentEndDate.getDate() + planDays);
+          const newEndDate = new Date(currentEndDate);
+          newEndDate.setDate(newEndDate.getDate() + planDays);
 
           const { error: subscriptionError } = await supabaseServiceRole
             .from("subscriptions")
             .update({
               plan: plan,
-              end_date: currentEndDate.toISOString(),
+              end_date: newEndDate.toISOString(),
               status: "active",
               updated_at: now.toISOString(),
             })
             .eq("id", existingSubscription.id);
 
           if (subscriptionError) {
-            console.error("❌ Error extending subscription:", subscriptionError);
+            console.error("❌ [webhook] Error extending subscription:", subscriptionError);
           } else {
-            console.log("✅ Subscription extended via webhook:", {
+            console.log("✅ [webhook] Subscription extended:", {
               userId,
               plan,
               oldEndDate: existingSubscription.end_date,
-              newEndDate: currentEndDate.toISOString(),
+              newEndDate: newEndDate.toISOString(),
               daysAdded: planDays,
             });
           }
         } else {
           // Create new subscription or replace expired one
-          // Upsert ensures only one active subscription per user (idempotent)
+          // start_date = NOW(), end_date = NOW() + INTERVAL of plan
           const { error: subscriptionError } = await supabaseServiceRole
             .from("subscriptions")
             .upsert(
@@ -224,9 +333,9 @@ export async function POST(request: NextRequest) {
             );
 
           if (subscriptionError) {
-            console.error("❌ Error upserting subscription:", subscriptionError);
+            console.error("❌ [webhook] Error upserting subscription:", subscriptionError);
           } else {
-            console.log("✅ Subscription created/updated via webhook:", {
+            console.log("✅ [webhook] Subscription created/updated:", {
               userId,
               plan,
               startDate: startDate.toISOString(),
@@ -236,7 +345,7 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (subscriptionError: any) {
-        console.error("❌ Error processing subscription:", subscriptionError);
+        console.error("❌ [webhook] Error processing subscription:", subscriptionError);
         // Continue - don't fail the webhook (idempotency)
       }
 

@@ -7,6 +7,7 @@ import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import SectionTitle from "@/app/components/SectionTitle";
 import { supabaseBrowser } from "@/app/lib/supabaseBrowser";
+import { getApiUrl } from "@/app/lib/baseUrl";
 
 export default function Home() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -25,7 +26,7 @@ export default function Home() {
       // If logged in, check subscription status
       if (loggedIn) {
         try {
-          const response = await fetch("/api/check-subscription-status");
+          const response = await fetch(getApiUrl("/api/check-subscription-status"));
           if (response.ok) {
             const data = await response.json();
             setHasActiveSubscription(data.active || false);

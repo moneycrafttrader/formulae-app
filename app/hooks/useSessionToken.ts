@@ -3,13 +3,39 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getLocalStorageItem, setLocalStorageItem, removeLocalStorageItem } from "@/app/lib/utils";
+import { getApiUrl } from "@/app/lib/baseUrl";
 
 const SESSION_TOKEN_KEY = "session_token";
+
+/**
+ * Convert a relative URL to absolute if needed
+ * Ensures all internal API calls use absolute URLs
+ */
+function ensureAbsoluteUrl(url: string): string {
+  // If already absolute (http:// or https://), return as-is
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+
+  // If relative URL starting with /api, convert to absolute using base URL
+  if (url.startsWith("/api")) {
+    return getApiUrl(url);
+  }
+
+  // For other relative URLs, convert if they start with /
+  if (url.startsWith("/")) {
+    return getApiUrl(url);
+  }
+
+  // Return as-is if it doesn't look like an internal API call
+  return url;
+}
 
 /**
  * Hook to manage session token synchronization with API requests
  * Injects x-session-token header into all fetch requests
  * Handles auto-logout when token mismatch is detected
+ * Ensures all internal API calls use absolute URLs
  */
 export function useSessionToken() {
   const router = useRouter();
@@ -24,9 +50,26 @@ export function useSessionToken() {
         const [url, options = {}] = args;
         const token = getLocalStorageItem(SESSION_TOKEN_KEY);
 
+        // Convert relative URLs to absolute for API calls
+        let finalUrl = url;
+        if (typeof url === "string") {
+          finalUrl = ensureAbsoluteUrl(url);
+        } else if (url instanceof Request) {
+          // For Request objects, convert URL to absolute if relative
+          const urlString = url.url;
+          if (urlString.startsWith("/api") || (urlString.startsWith("/") && !urlString.startsWith("//"))) {
+            const absoluteUrl = ensureAbsoluteUrl(urlString);
+            // Create new Request with absolute URL, preserving all properties
+            const newRequest = new Request(absoluteUrl, url);
+            finalUrl = newRequest;
+          }
+        }
+
         // Add session token to headers if present
-        if (token && typeof url === "string") {
-          const headers = new Headers(options.headers);
+        if (token) {
+          const headers = new Headers(
+            options.headers || (finalUrl instanceof Request ? finalUrl.headers : undefined)
+          );
           headers.set("x-session-token", token);
 
           const modifiedOptions = {
@@ -34,7 +77,7 @@ export function useSessionToken() {
             headers,
           };
 
-          const response = await originalFetch(url, modifiedOptions);
+          const response = await originalFetch(finalUrl, modifiedOptions);
 
           // Check for 401 (unauthorized) which indicates token mismatch
           if (response.status === 401) {
@@ -47,7 +90,12 @@ export function useSessionToken() {
           return response;
         }
 
-        return originalFetch(url, options);
+        // No token - just ensure absolute URL if needed
+        if (typeof url === "string" && url !== finalUrl) {
+          return originalFetch(finalUrl, options);
+        }
+
+        return originalFetch(finalUrl, options);
       };
 
       // Store original fetch for cleanup
