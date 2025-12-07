@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+import { createMiddlewareClient } from "@/app/lib/supabaseServer";
 
 export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
@@ -14,20 +11,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Create Supabase client with request cookies
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      get(name: string) {
-        return req.cookies.get(name)?.value;
-      },
-      set() {
-        // Can't set cookies in middleware
-      },
-      remove() {
-        // Can't remove cookies in middleware
-      },
-    },
-  });
+  // Create Supabase client with request cookies using the helper function
+  const supabase = createMiddlewareClient(req);
 
   // Check if user is authenticated
   const {
