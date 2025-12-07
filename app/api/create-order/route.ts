@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/app/lib/supabase";
+import { createServerClient } from "@/app/lib/supabaseServer";
 
 // Use require for razorpay (CommonJS module)
 const Razorpay = require("razorpay");
@@ -17,13 +17,31 @@ const razorpay = new Razorpay({
 
 // Plan pricing configuration
 const PLAN_PRICES: Record<string, number> = {
-  "1m": 1, // ₹2,999
+  "1m": 1, // ₹1 (test mode)
   "6m": 14999, // ₹14,999
   "12m": 24999, // ₹24,999
 };
 
 export async function POST(request: NextRequest) {
   try {
+    // Get Supabase client
+    const supabase = await createServerClient();
+
+    // Authenticate user with Supabase session
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error("Authentication failed:", userError?.message || "No user found");
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    // Parse request body
     const body = await request.json();
     const { plan } = body;
 
@@ -47,21 +65,23 @@ export async function POST(request: NextRequest) {
     // Convert to paise (Razorpay expects amount in smallest currency unit)
     const amountInPaise = amount * 100;
 
-    // Create Razorpay order
+    // Create Razorpay order with user_id in notes
     const razorpayOrder = await razorpay.orders.create({
       amount: amountInPaise,
       currency: "INR",
       receipt: `order_${Date.now()}_${plan}`,
       notes: {
         plan: plan,
+        user_id: user.id, // Include user_id in notes for webhook
         duration: plan === "1m" ? "1 month" : plan === "6m" ? "6 months" : "12 months",
       },
     });
 
-    // Store order in Supabase payments table
+    // Store order in Supabase payments table with user_id
     const { data: paymentRecord, error: dbError } = await supabase
       .from("payments")
       .insert({
+        user_id: user.id,
         razorpay_order_id: razorpayOrder.id,
         plan: plan,
         amount: amount,
@@ -76,16 +96,17 @@ export async function POST(request: NextRequest) {
       console.error("Error storing payment in database:", dbError);
       // Note: Order is already created in Razorpay, but we'll still return it
       // In production, you might want to handle this differently
+      return NextResponse.json(
+        { error: "Failed to store payment record", details: dbError.message },
+        { status: 500 }
+      );
     }
 
-    // Return order details to frontend
+    // Return order details to frontend (only required fields)
     return NextResponse.json({
-      id: razorpayOrder.id,
+      order_id: razorpayOrder.id,
       amount: razorpayOrder.amount,
       currency: razorpayOrder.currency,
-      receipt: razorpayOrder.receipt,
-      status: razorpayOrder.status,
-      plan: plan,
     });
   } catch (error: any) {
     console.error("Error creating Razorpay order:", error);

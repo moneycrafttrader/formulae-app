@@ -111,22 +111,27 @@ export default function SignupPage() {
       // Wait a moment for the trigger to create the profile
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Update profile with session token
-      const { error: profileError } = await supabaseBrowser
-        .from("profiles")
-        .update({
-          last_session_token: sessionToken,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", authData.user.id);
+      // Store session token via API (updates both profiles and device_lock)
+      const tokenRes = await fetch("/api/auth/store-session-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session_token: sessionToken,
+        }),
+      });
 
-      if (profileError) {
-        console.error("Error updating profile:", profileError);
+      if (!tokenRes.ok) {
+        console.error("Failed to store session token");
         // Continue anyway - profile will be updated on first login
       }
 
-      // Store session token
+      // Store session token in localStorage and cookie
       setSessionToken(sessionToken);
+      
+      // Also set cookie for middleware access
+      document.cookie = `session_token=${sessionToken}; path=/; max-age=86400; SameSite=Lax`;
 
       // Redirect to dashboard
       router.push("/dashboard");

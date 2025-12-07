@@ -133,20 +133,40 @@ bun dev
 Create a `.env.local` file in the root directory with the following variables:
 
 ```env
-# Razorpay Configuration
+# Razorpay Configuration (REQUIRED)
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 NEXT_PUBLIC_RAZORPAY_KEY_ID=your_razorpay_key_id
 
-# Supabase Configuration
+# Supabase Configuration (REQUIRED)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Developer Mode (Optional - bypasses trial limits for testing)
 NEXT_PUBLIC_DEV_MODE=true
 ```
 
-**Note**: Get your Razorpay credentials from [Razorpay Dashboard](https://dashboard.razorpay.com/) and Supabase credentials from your [Supabase Project Settings](https://app.supabase.com/).
+**Required Environment Variables:**
+- `RAZORPAY_KEY_ID` - Razorpay API key ID
+- `RAZORPAY_KEY_SECRET` - Razorpay API key secret
+- `RAZORPAY_WEBHOOK_SECRET` - Razorpay webhook secret (for webhook signature verification)
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID` - Public Razorpay key ID (for frontend checkout)
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for webhooks to bypass RLS)
+
+**Note**: 
+- Get your Razorpay credentials from [Razorpay Dashboard](https://dashboard.razorpay.com/)
+- Get your Supabase credentials from your [Supabase Project Settings](https://app.supabase.com/)
+- The webhook secret is generated when you create a webhook endpoint in Razorpay Dashboard
+- The service role key can be found in Supabase Project Settings → API → service_role key (keep this secret!)
+
+**Webhook Configuration:**
+- Configure Razorpay webhook URL: `https://formulae-app.vercel.app/api/razorpay-webhook`
+- Enable the `payment.captured` event in Razorpay webhook settings
+- Copy the webhook secret and set it as `RAZORPAY_WEBHOOK_SECRET` in your environment variables
 
 ## Architecture
 
@@ -359,6 +379,40 @@ Verifies Razorpay payment signature and updates the payment status in Supabase.
 **Security:**
 - Uses HMAC SHA256 signature verification to ensure payment authenticity
 - Never trusts client-side data without server-side verification
+- Also activates/extends subscription as a backup if webhook fails
+
+#### POST `/api/razorpay-webhook`
+
+Webhook endpoint for Razorpay payment events. This endpoint is called by Razorpay when payment events occur.
+
+**Webhook URL:** `https://formulae-app.vercel.app/api/razorpay-webhook`
+
+**Configure in Razorpay Dashboard:**
+1. Go to Settings → Webhooks
+2. Add webhook URL: `https://formulae-app.vercel.app/api/razorpay-webhook`
+3. Enable `payment.captured` event
+4. Copy the webhook secret and set as `RAZORPAY_WEBHOOK_SECRET` environment variable
+
+**Process:**
+1. Validates webhook signature using `RAZORPAY_WEBHOOK_SECRET`
+2. For `payment.captured` events:
+   - Extracts `payment_id`, `order_id`, `amount`, `user_id`, and `plan` from webhook payload
+   - Updates payments table: sets status to "completed", stores payment_id and signature
+   - Activates/extends subscription:
+     - If user has active subscription: extends end_date based on new plan
+     - If no active subscription: creates new subscription with calculated end_date
+   - Uses service role key to bypass RLS
+3. Always returns 200 status (even on errors) to prevent Razorpay retries
+
+**Subscription Activation:**
+- Plan durations: 1m = 30 days, 6m = 180 days, 12m = 365 days
+- If user already has active subscription, extends from current end_date
+- Otherwise, creates new subscription starting from now
+
+**Error Handling:**
+- Logs all errors but always returns 200 to avoid webhook retries
+- Continues processing even if order_id not found (handles edge cases)
+- Subscription creation/update failures are logged but don't fail the webhook
 
 ### Hydration Safety
 

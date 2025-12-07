@@ -55,8 +55,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
-    // Get session token from header
-    const clientToken = request.headers.get("x-session-token");
+    // Get session token from cookie (preferred) or header (fallback)
+    const cookieToken = request.cookies.get("session_token")?.value;
+    const headerToken = request.headers.get("x-session-token");
+    const clientToken = cookieToken || headerToken;
 
     // Fetch profile to check session token
     const { data: profile, error: profileError } = await supabase
@@ -69,17 +71,29 @@ export async function middleware(request: NextRequest) {
       // Profile doesn't exist - invalidate session
       await supabase.auth.signOut();
       const redirectUrl = new URL("/login", request.url);
-      redirectUrl.searchParams.set("error", "profile_not_found");
-      return NextResponse.redirect(redirectUrl);
+      redirectUrl.searchParams.set("session", "expired");
+      
+      // Clear cookies
+      const response = NextResponse.redirect(redirectUrl);
+      response.cookies.delete("session_token");
+      return response;
     }
 
     // Check session token match (single device login)
     if (!clientToken || profile.last_session_token !== clientToken) {
-      // Token mismatch - invalidate session and redirect
+      // Token mismatch - invalidate session, clear cookies, and redirect
       await supabase.auth.signOut();
       const redirectUrl = new URL("/login", request.url);
-      redirectUrl.searchParams.set("error", "session_mismatch");
-      return NextResponse.redirect(redirectUrl);
+      redirectUrl.searchParams.set("session", "expired");
+      
+      // Clear all cookies
+      const response = NextResponse.redirect(redirectUrl);
+      response.cookies.delete("session_token");
+      // Clear Supabase auth cookies
+      response.cookies.delete("sb-access-token");
+      response.cookies.delete("sb-refresh-token");
+      
+      return response;
     }
 
     // Check subscription requirement

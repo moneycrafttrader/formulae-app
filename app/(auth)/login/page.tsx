@@ -71,30 +71,27 @@ function LoginForm() {
       // Generate session token
       const sessionToken = crypto.randomUUID();
 
-      // Update profile with session token using client-side Supabase (has auth context)
-      const { error: profileError } = await supabaseBrowser
-        .from("profiles")
-        .upsert(
-          {
-            id: authData.user.id,
-            email: authData.user.email!,
-            role: "user",
-            last_session_token: sessionToken,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: "id",
-          }
-        );
+      // Store session token via API (updates both profiles and device_lock)
+      const tokenRes = await fetch("/api/auth/store-session-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          session_token: sessionToken,
+        }),
+      });
 
-      if (profileError) {
-        console.error("Failed to update session token:", profileError);
-        // Still allow login even if token update fails
-        // User can continue but single-device login won't work until this is fixed
+      if (!tokenRes.ok) {
+        console.error("Failed to store session token");
+        // Still allow login, but device-lock may not work
       }
 
-      // Store session token in localStorage
+      // Store session token in localStorage and cookie
       setSessionToken(sessionToken);
+      
+      // Also set cookie for middleware access
+      document.cookie = `session_token=${sessionToken}; path=/; max-age=86400; SameSite=Lax`;
 
       // Redirect to intended page or dashboard
       router.push(redirectTo);

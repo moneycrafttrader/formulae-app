@@ -1,36 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/app/lib/supabaseServer";
+import { clearSessionToken } from "@/app/lib/sessionToken";
 
 /**
  * POST /api/auth/logout
  * Handles user logout
- * Clears Supabase session and invalidates session token
+ * Clears Supabase session and invalidates session token from profiles and device_lock
  */
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createServerClient();
 
-    // Get current user
+    // Try to get user from Supabase session
     const {
       data: { user },
-      error: userError,
     } = await supabase.auth.getUser();
 
-    if (!userError && user) {
-      // Invalidate session token in profile
-      await supabase
-        .from("profiles")
-        .update({
-          last_session_token: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
+    // Clear session token from profiles and device_lock
+    if (user) {
+      await clearSessionToken(user.id);
     }
 
     // Sign out from Supabase
     await supabase.auth.signOut();
 
-    return NextResponse.json({ success: true });
+    // Create response and clear cookies
+    const response = NextResponse.json({ success: true });
+    response.cookies.delete("session_token");
+    response.cookies.delete("sb-access-token");
+    response.cookies.delete("sb-refresh-token");
+
+    return response;
   } catch (error: any) {
     console.error("Logout error:", error);
     return NextResponse.json(

@@ -138,7 +138,8 @@ See `supabase-schema.sql` for complete schema including triggers and RLS policie
 
 Functions:
 - `isUserSubscribed(userId, supabaseClient?)` - Check if user has active subscription
-- `getUserSubscription(userId)` - Get subscription details
+- `getUserSubscription(supabase, userId)` - Get subscription details (requires Supabase client)
+- `calculateEndDate(plan, startDate?)` - Calculate subscription end date based on plan
 
 ## Setup Instructions
 

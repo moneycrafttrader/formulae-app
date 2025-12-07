@@ -23,6 +23,12 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [subscription, setSubscription] = useState<{
+    plan: string;
+    start_date: string;
+    end_date: string;
+    status: string;
+  } | null>(null);
 
   // Load user profile data
   useEffect(() => {
@@ -60,6 +66,22 @@ export default function ProfilePage() {
       // Phone number - you can add this to profiles table if needed
       // For now, using empty string
       setPhone("");
+
+      // Load subscription status
+      const { data: subscriptionData } = await supabaseBrowser
+        .from("subscriptions")
+        .select("plan, start_date, end_date, status")
+        .eq("user_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (subscriptionData) {
+        const endDate = new Date(subscriptionData.end_date);
+        const now = new Date();
+        if (endDate > now) {
+          setSubscription(subscriptionData as typeof subscription);
+        }
+      }
 
       setLoading(false);
     } catch (err) {
@@ -315,6 +337,61 @@ export default function ProfilePage() {
           >
             {saving ? "Saving..." : "Save Changes"}
           </Button>
+        </Card>
+
+        {/* Subscription Status Card */}
+        <Card variant="light" className="space-y-5">
+          <div>
+            <h3 className="text-xl font-semibold text-white mb-4">
+              Subscription Status
+            </h3>
+
+            {subscription ? (
+              <div className="space-y-3">
+                <div>
+                  <span className="text-gray-400">Status:</span>{" "}
+                  <span className="text-[#00ff88] font-medium">Active</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Plan:</span>{" "}
+                  <span className="text-white font-medium">
+                    {subscription.plan === "1m"
+                      ? "1 Month"
+                      : subscription.plan === "6m"
+                      ? "6 Months"
+                      : "1 Year"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">End Date:</span>{" "}
+                  <span className="text-white font-medium">
+                    {new Date(subscription.end_date).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+                <div className="pt-3">
+                  <Button variant="primary" href="/subscribe" fullWidth>
+                    Manage Subscription
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <span className="text-gray-400">Status:</span>{" "}
+                  <span className="text-red-400 font-medium">No Active Subscription</span>
+                </div>
+                <div className="pt-3">
+                  <Button variant="primary" href="/subscribe" fullWidth>
+                    Subscribe Now
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </Card>
       </div>
     </PageContainer>

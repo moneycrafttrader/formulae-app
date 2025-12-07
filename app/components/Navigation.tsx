@@ -43,8 +43,15 @@ export default function Navigation() {
 
   const handleLogout = async () => {
     try {
+      const token = localStorage.getItem("session_token");
       clearSessionToken();
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-session-token": token ?? "",
+        },
+      });
       await supabaseBrowser.auth.signOut();
       router.push("/");
       router.refresh();
