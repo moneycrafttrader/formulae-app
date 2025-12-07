@@ -95,8 +95,13 @@ function LoginForm() {
       // Also set cookie for middleware access
       document.cookie = `session_token=${sessionToken}; path=/; max-age=86400; SameSite=Lax`;
 
-      // Redirect to intended page or dashboard
-      router.push(redirectTo);
+      // Wait a moment for Supabase cookies to be set before redirecting
+      // This ensures middleware can read the session properly
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Use window.location for more reliable redirect that includes cookies
+      // This ensures cookies are properly sent with the redirect
+      window.location.href = redirectTo;
     } catch (err: any) {
       console.error("Login error:", err);
       setError("An error occurred. Please try again.");

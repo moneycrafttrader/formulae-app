@@ -1,60 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@/app/lib/supabaseServer";
-import { getActiveSubscription } from "@/app/lib/subscription";
 
-/**
- * GET /api/subscription/details
- * Returns active subscription details including end_date, plan, and remaining days
- * Used by dashboard and subscription pages
- */
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // Get authenticated user
     const supabase = await createServerClient();
+
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
+    // If no user or error, return null subscription (don't return 401)
+    // This allows the page to work even if cookies aren't fully set yet
     if (userError || !user) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ subscription: null });
     }
 
-    // Get active subscription using utility function
-    const subscription = await getActiveSubscription(user.id);
+    // Get active subscription
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
 
-    if (!subscription) {
-      return NextResponse.json({
-        active: false,
-        subscription: null,
-        remainingDays: 0,
-      });
+    // If error or no data, return null (not an error response)
+    if (error || !data) {
+      return NextResponse.json({ subscription: null });
     }
 
-    // Calculate remaining days
-    const endDate = new Date(subscription.end_date);
+    // Check if subscription hasn't expired
+    const endDate = new Date(data.end_date);
     const now = new Date();
-    const remainingDays = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    if (endDate <= now) {
+      return NextResponse.json({ subscription: null });
+    }
 
-    return NextResponse.json({
-      active: true,
-      subscription: {
-        id: subscription.id,
-        plan: subscription.plan,
-        startDate: subscription.start_date,
-        endDate: subscription.end_date,
-        status: subscription.status,
-      },
-      remainingDays,
-    });
+    return NextResponse.json({ subscription: data });
   } catch (error: any) {
+    // Always return null instead of error to prevent breaking the UI
     console.error("Error fetching subscription details:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ subscription: null });
   }
 }

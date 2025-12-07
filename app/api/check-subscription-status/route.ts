@@ -14,11 +14,10 @@ export async function GET(request: NextRequest) {
       error: userError,
     } = await supabase.auth.getUser();
 
+    // If no user, return inactive without error (don't return 401 for public access)
+    // This allows the home page to work even if cookies aren't fully set yet
     if (userError || !user) {
-      return NextResponse.json(
-        { active: false, error: "Not authenticated" },
-        { status: 401 }
-      );
+      return NextResponse.json({ active: false });
     }
 
     const active = await isSubscriptionActive(user.id);
@@ -26,9 +25,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ active });
   } catch (error: any) {
     console.error("Error checking subscription status:", error);
-    return NextResponse.json(
-      { active: false, error: error.message },
-      { status: 500 }
-    );
+    // Return inactive instead of error to prevent breaking the UI
+    return NextResponse.json({ active: false });
   }
 }

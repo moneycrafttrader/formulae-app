@@ -1,140 +1,76 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createMiddlewareClient } from "@/app/lib/supabaseServer";
-import { isUserSubscribed } from "@/app/lib/subscription";
+import { createClient } from "@supabase/supabase-js";
 
-// Routes that don't require authentication
-const publicRoutes = ["/", "/login", "/signup", "/forgot-password", "/auth/callback"];
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// Routes that require authentication
-const protectedRoutes = ["/dashboard", "/calculator", "/profile", "/subscribe"];
+export async function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
 
-// Routes that require subscription
-const subscriptionRequiredRoutes = ["/calculator"];
-
-/**
- * Middleware to protect routes and validate session tokens
- */
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Allow auth callback route without any checks (handles its own authentication)
-  if (pathname.startsWith("/auth/callback")) {
+  // Public paths that don't require authentication
+  const publicPaths = ["/", "/login", "/signup", "/forgot-password", "/auth/callback"];
+  if (publicPaths.includes(path) || path.startsWith("/auth/")) {
     return NextResponse.next();
   }
 
-  // Check if route is public
-  const isPublicRoute = publicRoutes.some((route) => pathname === route);
+  // Create Supabase client with request cookies
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return req.cookies.get(name)?.value;
+      },
+      set() {
+        // Can't set cookies in middleware
+      },
+      remove() {
+        // Can't remove cookies in middleware
+      },
+    },
+  });
 
-  // Allow public routes
-  if (isPublicRoute) {
+  // Check if user is authenticated
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  // If no user or error, redirect to login
+  if (error || !user) {
+    // Don't redirect if we're already on login page to avoid loops
+    if (path !== "/login") {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect", path);
+      return NextResponse.redirect(loginUrl);
+    }
+    // If already on login, allow through
     return NextResponse.next();
   }
 
-  // Check if route is protected
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    pathname.startsWith(route)
-  );
+  // Check subscription requirement for calculator
+  if (path.startsWith("/calculator")) {
+    try {
+      const res = await fetch(`${req.nextUrl.origin}/api/subscription/details`, {
+        headers: { 
+          Cookie: req.headers.get("cookie") || "",
+          "x-session-token": req.cookies.get("session_token")?.value || "",
+        },
+      });
 
-  if (!isProtectedRoute) {
-    return NextResponse.next();
-  }
+      const data = await res.json();
 
-  try {
-    // Get Supabase session (using middleware client)
-    const supabase = createMiddlewareClient(request);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    // No user session - redirect to login
-    if (userError || !user) {
-      const redirectUrl = new URL("/login", request.url);
-      redirectUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(redirectUrl);
-    }
-
-    // Get session token from cookie (preferred) or header (fallback)
-    const cookieToken = request.cookies.get("session_token")?.value;
-    const headerToken = request.headers.get("x-session-token");
-    const clientToken = cookieToken || headerToken;
-
-    // Fetch profile to check session token
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("last_session_token, role")
-      .eq("id", user.id)
-      .single();
-
-    if (profileError || !profile) {
-      // Profile doesn't exist - invalidate session
-      await supabase.auth.signOut();
-      const redirectUrl = new URL("/login", request.url);
-      redirectUrl.searchParams.set("session", "expired");
-      
-      // Clear cookies
-      const response = NextResponse.redirect(redirectUrl);
-      response.cookies.delete("session_token");
-      return response;
-    }
-
-    // Check session token match (single device login)
-    // If last_session_token is null and clientToken exists, this is a new session - allow it
-    // If last_session_token exists and doesn't match clientToken, invalidate session
-    const hasStoredToken = profile.last_session_token !== null && profile.last_session_token !== undefined;
-    const tokenMismatch = hasStoredToken && profile.last_session_token !== clientToken;
-    
-    if (!clientToken || tokenMismatch) {
-      // Token mismatch or no client token - invalidate session, clear cookies, and redirect
-      await supabase.auth.signOut();
-      const redirectUrl = new URL("/login", request.url);
-      redirectUrl.searchParams.set("session", "expired");
-      
-      // Clear all cookies
-      const response = NextResponse.redirect(redirectUrl);
-      response.cookies.delete("session_token");
-      // Clear Supabase auth cookies
-      response.cookies.delete("sb-access-token");
-      response.cookies.delete("sb-refresh-token");
-      
-      return response;
-    }
-
-    // Check subscription requirement
-    const requiresSubscription = subscriptionRequiredRoutes.some((route) =>
-      pathname.startsWith(route)
-    );
-
-    if (requiresSubscription) {
-      const hasSubscription = await isUserSubscribed(user.id, supabase);
-      if (!hasSubscription) {
-        const redirectUrl = new URL("/subscribe", request.url);
-        redirectUrl.searchParams.set("error", "subscription_required");
-        return NextResponse.redirect(redirectUrl);
+      if (!data.subscription) {
+        return NextResponse.redirect(new URL("/subscribe", req.url));
       }
+    } catch (error) {
+      // If subscription check fails, allow through to let the page handle it
+      console.error("Error checking subscription in middleware:", error);
     }
-
-    // All checks passed - allow request
-    return NextResponse.next();
-  } catch (error) {
-    console.error("Middleware error:", error);
-    // On error, redirect to login
-    const redirectUrl = new URL("/login", request.url);
-    redirectUrl.searchParams.set("error", "server_error");
-    return NextResponse.redirect(redirectUrl);
   }
+
+  return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/dashboard/:path*", "/calculator/:path*", "/subscribe/:path*", "/profile/:path*"],
 };

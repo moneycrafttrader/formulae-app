@@ -26,10 +26,16 @@ export default function Home() {
       // If logged in, check subscription status
       if (loggedIn) {
         try {
-          const response = await fetch(getApiUrl("/api/check-subscription-status"));
+          const response = await fetch(getApiUrl("/api/check-subscription-status"), {
+            credentials: "include", // Ensure cookies are sent
+          });
           if (response.ok) {
             const data = await response.json();
             setHasActiveSubscription(data.active || false);
+          } else if (response.status === 401) {
+            // If unauthorized, user might not be fully authenticated yet
+            // Don't show error, just assume no subscription
+            setHasActiveSubscription(false);
           }
         } catch (error) {
           console.error("Error checking subscription:", error);
@@ -134,10 +140,20 @@ export default function Home() {
             </p>
             <Button 
               variant="primary" 
-              href={isLoggedIn && hasActiveSubscription ? "/calculator" : "/subscribe"} 
+              href={
+                !isLoggedIn 
+                  ? "/login" 
+                  : hasActiveSubscription 
+                    ? "/calculator" 
+                    : "/subscribe"
+              } 
               fullWidth
             >
-              {isLoggedIn && hasActiveSubscription ? "Calculate Magic Formulae →" : "Get Started →"}
+              {!isLoggedIn 
+                ? "Get Started →" 
+                : hasActiveSubscription 
+                  ? "Calculate Magic Formulae →" 
+                  : "Subscribe Now →"}
             </Button>
           </Card>
 
