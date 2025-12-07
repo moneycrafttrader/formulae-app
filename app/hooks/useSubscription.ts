@@ -1,17 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface Subscription {
-  id: string;
-  user_id: string;
-  plan: "1m" | "6m" | "12m";
-  start_date: string;
-  end_date: string;
-  status: "active" | "expired" | "cancelled";
-  created_at: string;
-  updated_at: string;
-}
+import type { Subscription } from "@/app/lib/subscription";
 
 export function useSubscription() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);

@@ -8,10 +8,28 @@ import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
 import SectionTitle from "@/app/components/SectionTitle";
 
+// Razorpay types
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: () => void;
+  prefill: Record<string, unknown>;
+  theme: { color: string };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, callback: () => void) => void;
+}
+
 // Allow Razorpay to exist on window object
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
 
@@ -50,7 +68,7 @@ export default function SubscribePage() {
       theme: { color: "#00ff88" },
     };
 
-    const rzp = new (window as any).Razorpay(options);
+    const rzp = new window.Razorpay(options);
     rzp.on("payment.failed", function () {
       setProcessing(null);
       alert("Payment failed. Please try again.");
@@ -98,7 +116,7 @@ export default function SubscribePage() {
     <>
       <Script src="https://checkout.razorpay.com/v1/checkout.js" />
 
-      <PageContainer maxWidth="6xl">
+      <PageContainer maxWidth="7xl">
         <SectionTitle
           align="center"
           title="Choose Your Subscription Plan"

@@ -83,7 +83,12 @@ export function useSessionToken() {
           // Only redirect if the URL is an API route that requires authentication
           // Never redirect for subscription/check APIs as they handle auth gracefully
           if (response.status === 401) {
-            const urlString = typeof finalUrl === "string" ? finalUrl : finalUrl instanceof Request ? finalUrl.url : "";
+            let urlString = "";
+            if (typeof finalUrl === "string") {
+              urlString = finalUrl;
+            } else if (finalUrl instanceof Request) {
+              urlString = finalUrl.url;
+            }
             
             // List of APIs that should NOT trigger auto-redirect (they handle auth gracefully)
             const safeApis = [
@@ -92,10 +97,10 @@ export function useSessionToken() {
               "/subscription/details/",
             ];
             
-            const isSafeApi = safeApis.some(safe => urlString.includes(safe));
+            const isSafeApi = urlString && safeApis.some(safe => urlString.includes(safe));
             
             // Only redirect for protected APIs that aren't in the safe list
-            if (urlString.includes("/api/") && !isSafeApi) {
+            if (urlString && urlString.includes("/api/") && !isSafeApi) {
               // Clear local storage and redirect to login
               removeLocalStorageItem(SESSION_TOKEN_KEY);
               router.push("/login?error=session_expired");
