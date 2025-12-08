@@ -11,7 +11,7 @@ A Next.js application for calculating trading formulae with secure subscription 
 - **Route Protection**: Middleware-based route protection with session validation and subscription-based access control
 - **Single-Device Login**: Security feature that automatically logs out users from other devices when logging in from a new device
 - **Subscription Plans**: Multiple subscription tiers with pricing and feature comparison
-- **Trial System**: Free trial system with localStorage-based tracking (3 free calculations)
+- **Trial System**: Free trial system with localStorage-based tracking (configurable via `NEXT_PUBLIC_TRIAL_LIMIT`, defaults to 3)
 - **Responsive Design**: Modern, dark-themed UI matching Magic Formulae design with consistent styling across all pages
 - **Navigation Bar**: Fixed navigation with brand logo, menu items, and call-to-action buttons
 - **Scalable Architecture**: Modular components and utilities for easy maintenance and extension
@@ -146,6 +146,9 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
 # Developer Mode (Optional - bypasses trial limits for testing)
 NEXT_PUBLIC_DEV_MODE=true
+
+# Trial Limit Configuration (Optional - defaults to 3 if not set)
+NEXT_PUBLIC_TRIAL_LIMIT=20
 ```
 
 **Required Environment Variables:**
@@ -156,6 +159,9 @@ NEXT_PUBLIC_DEV_MODE=true
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anonymous key
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for webhooks to bypass RLS)
+
+**Optional Environment Variables:**
+- `NEXT_PUBLIC_TRIAL_LIMIT` - Number of free trial calculations allowed (defaults to 3 if not set)
 
 **Note**: 
 - Get your Razorpay credentials from [Razorpay Dashboard](https://dashboard.razorpay.com/)
@@ -211,12 +217,23 @@ The `app/lib/utils.ts` file provides SSR-safe utility functions:
 - **`enableDeveloperMode()`**: Enables developer mode to bypass trial limits (for testing)
 - **`disableDeveloperMode()`**: Disables developer mode
 - **`isDeveloperMode()`**: Checks if developer mode is currently enabled
+- **`resetTrialCountForDev()`**: Resets trial count to 0 in development mode only (for testing)
 
 All functions include proper error handling and SSR checks to prevent hydration mismatches and runtime errors.
 
+### Trial System
+
+The application includes a free trial system that allows users to perform a limited number of calculations before requiring a subscription. The trial limit is configurable via the `NEXT_PUBLIC_TRIAL_LIMIT` environment variable (defaults to 3 if not set).
+
+**Configuration:**
+- Set `NEXT_PUBLIC_TRIAL_LIMIT=20` in your `.env.local` file to allow 20 free calculations
+- The trial count is stored in localStorage and persists across sessions
+- Existing users will automatically get the new limit when the environment variable is updated
+- In development mode, the trial count is reset to 0 on each page reload for easier testing
+
 ### Developer Mode
 
-Developers can bypass the 3-trial limit for testing purposes:
+Developers can bypass the trial limit for testing purposes:
 
 **Option 1: Environment Variable**
 Set `NEXT_PUBLIC_DEV_MODE=true` in your `.env.local` file.

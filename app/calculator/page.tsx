@@ -13,6 +13,7 @@ import {
   getLocalStorageItem,
   setLocalStorageItem,
   isDeveloperMode,
+  resetTrialCountForDev,
 } from "@/app/lib/utils";
 
 import {
@@ -22,6 +23,9 @@ import {
 } from "./formulaUtils";
 
 type FormulaSetType = "classic" | "camarilla";
+
+// Get trial limit from environment variable, default to 3 if not set
+const TRIAL_LIMIT = Number(process.env.NEXT_PUBLIC_TRIAL_LIMIT) || 3;
 
 export default function CalculatorPage() {
   // Inputs
@@ -46,13 +50,16 @@ export default function CalculatorPage() {
   const [result, setResult] = useState<FormulaResult | null>(null);
 
   // Trial system
-  const [trialsLeft, setTrialsLeft] = useState(3);
+  const [trialsLeft, setTrialsLeft] = useState(TRIAL_LIMIT);
   const [mounted, setMounted] = useState(false);
   const [isDeveloper, setIsDeveloper] = useState(false);
 
   // Load trials on mount and check developer mode
   useEffect(() => {
     setMounted(true);
+    
+    // Reset trial count in development mode only
+    resetTrialCountForDev();
     
     // Check if developer mode is enabled
     const devMode = isDeveloperMode();
@@ -63,12 +70,12 @@ export default function CalculatorPage() {
       const saved = getLocalStorageItem("trialsLeft");
 
       if (!saved) {
-        setLocalStorageItem("trialsLeft", "3");
-        setTrialsLeft(3);
+        setLocalStorageItem("trialsLeft", String(TRIAL_LIMIT));
+        setTrialsLeft(TRIAL_LIMIT);
       } else {
         const savedTrials = Number(saved);
-        // Ensure trials are between 0 and 3
-        const validTrials = Math.max(0, Math.min(3, savedTrials));
+        // Ensure trials are between 0 and TRIAL_LIMIT
+        const validTrials = Math.max(0, Math.min(TRIAL_LIMIT, savedTrials));
         setTrialsLeft(validTrials);
         if (savedTrials !== validTrials) {
           setLocalStorageItem("trialsLeft", String(validTrials));
@@ -200,9 +207,9 @@ export default function CalculatorPage() {
             <p className="text-center text-gray-300 text-sm">
               Trials Left:{" "}
               <span className="text-yellow-400 font-semibold">
-                {mounted ? trialsLeft : 3}
+                {mounted ? trialsLeft : TRIAL_LIMIT}
               </span>{" "}
-              / 3
+              / {TRIAL_LIMIT}
             </p>
           )}
         </Card>

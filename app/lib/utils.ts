@@ -77,3 +77,13 @@ export function isDeveloperMode(): boolean {
     getLocalStorageItem("dev_mode") === "true"
   );
 }
+
+/**
+ * Reset trial count for development mode only
+ * This function only works in development and should never run in production
+ */
+export function resetTrialCountForDev(): void {
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+    setLocalStorageItem("trialsLeft", "0");
+  }
+}
