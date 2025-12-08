@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import PageContainer from "@/app/components/PageContainer";
 import Card from "@/app/components/Card";
 import Button from "@/app/components/Button";
@@ -28,6 +29,8 @@ type FormulaSetType = "classic" | "camarilla";
 const TRIAL_LIMIT = Number(process.env.NEXT_PUBLIC_TRIAL_LIMIT) || 3;
 
 export default function CalculatorPage() {
+  const router = useRouter();
+  
   // Inputs
   const [open, setOpen] = useState("");
   const [high, setHigh] = useState("");
@@ -53,6 +56,7 @@ export default function CalculatorPage() {
   const [trialsLeft, setTrialsLeft] = useState(TRIAL_LIMIT);
   const [mounted, setMounted] = useState(false);
   const [isDeveloper, setIsDeveloper] = useState(false);
+  const [hasSubscription, setHasSubscription] = useState(false);
 
   // Load trials on mount and check developer mode
   useEffect(() => {
@@ -85,7 +89,33 @@ export default function CalculatorPage() {
       // Developer mode: set unlimited trials
       setTrialsLeft(999);
     }
+
+    // Check subscription status
+    const checkSubscription = async () => {
+      try {
+        const response = await fetch("/api/check-subscription-status", {
+          credentials: "include",
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setHasSubscription(data.active || false);
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        setHasSubscription(false);
+      }
+    };
+    checkSubscription();
   }, []);
+
+  // Redirect logic - only after mount to prevent hydration issues
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (!hasSubscription && trialsLeft <= 0) {
+      router.push("/subscribe");
+    }
+  }, [mounted, hasSubscription, trialsLeft, router]);
 
   // When switching tab → instantly show the available result (no need to recalc)
   useEffect(() => {

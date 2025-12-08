@@ -19,7 +19,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const redirectTo = searchParams.get("redirect") || "/";
   const errorParam = searchParams.get("error");
 
   useEffect(() => {

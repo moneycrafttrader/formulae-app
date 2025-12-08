@@ -87,3 +87,23 @@ export function resetTrialCountForDev(): void {
     setLocalStorageItem("trialsLeft", "0");
   }
 }
+
+/**
+ * Get trials left from localStorage
+ * Returns the number of trials remaining, defaulting to 20 if not set
+ */
+export function getTrialsLeft(): number {
+  if (typeof window === "undefined") return 0;
+
+  const stored = getLocalStorageItem("trial_count");
+  return stored ? Number(stored) : 20; // default 20 for dev
+}
+
+/**
+ * Set trials left in localStorage
+ * @param value - Number of trials remaining
+ */
+export function setTrialsLeft(value: number): void {
+  if (typeof window === "undefined") return;
+  setLocalStorageItem("trial_count", String(value));
+}
