@@ -140,20 +140,10 @@ export default function Home() {
             </p>
             <Button 
               variant="primary" 
-              href={
-                !isLoggedIn 
-                  ? "/login" 
-                  : hasActiveSubscription 
-                    ? "/calculator" 
-                    : "/subscribe"
-              } 
+              href="/calculator"
               fullWidth
             >
-              {!isLoggedIn 
-                ? "Get Started →" 
-                : hasActiveSubscription 
-                  ? "Calculate Magic Formulae →" 
-                  : "Subscribe Now →"}
+              Calculate magic formula
             </Button>
           </Card>
 
